@@ -1,0 +1,10 @@
+{
+  "name": "Skill Barter System",
+  "short_name": "SkillBarter",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0b1320",
+  "theme_color": "#0f766e",
+  "description": "Exchange skills without money using smart barter matching.",
+  "icons": []
+}
