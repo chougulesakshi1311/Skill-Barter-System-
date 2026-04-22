@@ -7,7 +7,7 @@ const connectDB = require("./config/db");
 const { validateEnv } = require("./config/env");
 const { initSocket } = require("./utils/socket");
 
-const PORT = Number(process.env.PORT || 5000);
+const PORT = Number(process.env.PORT || 5001);
 
 const bootstrap = async () => {
   validateEnv();
