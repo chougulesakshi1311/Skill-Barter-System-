@@ -14,7 +14,6 @@ const router = express.Router();
 
 router.get("/search", protect, searchUsers);
 router.get("/recommendations", protect, getRecommendations);
-router.get("/:id", protect, getPublicProfile);
 router.patch(
   "/me",
   protect,
@@ -27,6 +26,7 @@ router.patch(
   validate,
   updateMyProfile
 );
+router.get("/:id", protect, getPublicProfile);
 router.post("/:id/favorite", protect, toggleFavorite);
 
 module.exports = router;
