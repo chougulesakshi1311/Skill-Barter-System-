@@ -10,11 +10,18 @@ const { protect } = require("../middleware/authMiddleware");
 const validate = require("../middleware/validate");
 
 const router = express.Router();
+const mongoose = require("mongoose");
 
 router.post(
   "/",
   protect,
-  [body("toUser").notEmpty(), body("offeredSkill").notEmpty(), body("requestedSkill").notEmpty()],
+  [
+    body("toUser")
+      .notEmpty().withMessage("Target user is required")
+      .custom(val => mongoose.Types.ObjectId.isValid(val)).withMessage("Invalid user ID format"),
+    body("offeredSkill").notEmpty().withMessage("Offered skill is required"),
+    body("requestedSkill").notEmpty().withMessage("Requested skill is required"),
+  ],
   validate,
   createRequest
 );

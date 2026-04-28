@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
+import { useLocation } from "react-router-dom";
 import api from "../api/client";
+import { useAuth } from "../context/AuthContext";
 import StateView from "../components/StateView";
 
 const STATUS_STYLES = {
@@ -11,11 +13,20 @@ const STATUS_STYLES = {
 };
 
 const RequestsPage = () => {
+  const location = useLocation();
+  const { user } = useAuth();
   const [requests, setRequests] = useState([]);
   const [form, setForm] = useState({ toUser: "", offeredSkill: "", requestedSkill: "", message: "" });
   const [loading, setLoading] = useState(true);
   const [error, setError]     = useState("");
   const [formError, setFormError] = useState("");
+
+  // Pre-fill form from navigation state if available
+  useEffect(() => {
+    if (location.state?.selectedUserId) {
+      setForm(prev => ({ ...prev, toUser: location.state.selectedUserId }));
+    }
+  }, [location.state]);
 
   const loadRequests = async () => {
     setLoading(true); setError("");
@@ -165,12 +176,15 @@ const RequestsPage = () => {
                       </td>
                       <td style={{ padding: "14px 20px" }}>
                         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                          {r.status === "pending" && (
+                          {r.status === "pending" && String(r.toUser._id) === String(user._id) && (
                             <>
                               <button className="sbs-btn sbs-btn--secondary" style={{ padding: "6px 12px", fontSize: "0.78rem" }} onClick={() => updateStatus(r._id, "accepted")}>Accept</button>
                               <button className="sbs-btn sbs-btn--ghost"  style={{ padding: "6px 12px", fontSize: "0.78rem", borderColor: "var(--error)", color: "var(--error)" }} onClick={() => updateStatus(r._id, "rejected")}>Reject</button>
                               <button className="sbs-btn sbs-btn--ghost"  style={{ padding: "6px 12px", fontSize: "0.78rem" }} onClick={() => cancel(r._id)}>Cancel</button>
                             </>
+                          )}
+                          {r.status === "pending" && String(r.fromUser._id) === String(user._id) && (
+                            <button className="sbs-btn sbs-btn--ghost"  style={{ padding: "6px 12px", fontSize: "0.78rem" }} onClick={() => cancel(r._id)}>Cancel</button>
                           )}
                           {r.status === "accepted" && (
                             <button className="sbs-btn sbs-btn--primary" style={{ padding: "6px 14px", fontSize: "0.78rem" }} onClick={() => updateStatus(r._id, "completed")}>

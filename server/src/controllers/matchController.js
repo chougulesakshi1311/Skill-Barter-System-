@@ -4,7 +4,7 @@ const { buildPairMatches, buildChainMatches } = require("../utils/matchingEngine
 
 const getMatches = asyncHandler(async (req, res) => {
   const users = await User.find({ isBlocked: false }).select(
-    "name profilePicture bio location skillsOffered skillsWanted lastActiveAt"
+    "_id name profilePicture bio location skillsOffered skillsWanted lastActiveAt"
   );
 
   const currentUser = users.find((u) => String(u._id) === String(req.user._id));

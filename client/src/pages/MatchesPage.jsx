@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import api from "../api/client";
 import StateView from "../components/StateView";
 import { useAuth } from "../context/AuthContext";
@@ -60,6 +61,7 @@ const AVATARS = {
 
 const MatchesPage = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [pairMatches, setPairMatches]   = useState([]);
   const [chainMatches, setChainMatches] = useState([]);
   const [loading, setLoading]           = useState(true);
@@ -188,10 +190,10 @@ const MatchesPage = () => {
 
                   {/* Actions */}
                   <div style={{ display: "flex", gap: 10, marginTop: "auto" }}>
-                    <button className="sbs-btn sbs-btn--primary" style={{ flex: 1, justifyContent: "center", fontSize: "0.85rem", padding: "10px" }}>
+                    <button className="sbs-btn sbs-btn--primary" style={{ flex: 1, justifyContent: "center", fontSize: "0.85rem", padding: "10px" }} onClick={() => navigate("/requests", { state: { selectedUserId: m.user._id, selectedUserName: m.user.name } })}>
                       Send Request
                     </button>
-                    <button className="sbs-btn sbs-btn--outline" style={{ fontSize: "0.85rem", padding: "10px 14px" }}>
+                    <button className="sbs-btn sbs-btn--outline" style={{ fontSize: "0.85rem", padding: "10px 14px" }} onClick={() => navigate(`/profile/${m.user._id}`)}>
                       View Profile
                     </button>
                   </div>
@@ -253,7 +255,7 @@ const MatchesPage = () => {
                     <p style={{ fontSize: "0.88rem", color: "var(--on-surface-variant)", maxWidth: 480, margin: 0, lineHeight: 1.65 }}>
                       {chain.description || "A multi-way chain exchange providing maximum value for all participants."}
                     </p>
-                    <button className="sbs-btn sbs-btn--primary" style={{ whiteSpace: "nowrap", padding: "12px 24px" }}>
+                    <button className="sbs-btn sbs-btn--primary" style={{ whiteSpace: "nowrap", padding: "12px 24px" }} onClick={() => alert("Chain proposals will be implemented in a future update. For now, please send individual requests to each participant.")}>
                       Propose Chain Exchange
                     </button>
                   </div>

@@ -1,4 +1,5 @@
 const asyncHandler = require("../utils/asyncHandler");
+const mongoose = require("mongoose");
 const BarterRequest = require("../models/BarterRequest");
 const { createNotification } = require("../utils/notify");
 const { REQUEST_STATUS } = require("../utils/constants");
@@ -6,21 +7,32 @@ const { REQUEST_STATUS } = require("../utils/constants");
 const createRequest = asyncHandler(async (req, res) => {
   const { toUser, offeredSkill, requestedSkill, message } = req.body;
 
-  if (String(toUser) === String(req.user._id)) {
+  // Convert toUser to ObjectId
+  const toUserId = new mongoose.Types.ObjectId(toUser);
+
+  if (String(toUserId) === String(req.user._id)) {
     res.status(400);
     throw new Error("Cannot send a request to yourself");
   }
 
+  // Check if target user exists
+  const User = require("../models/User");
+  const targetUser = await User.findById(toUserId);
+  if (!targetUser) {
+    res.status(404);
+    throw new Error("Target user not found");
+  }
+
   const request = await BarterRequest.create({
     fromUser: req.user._id,
-    toUser,
+    toUser: toUserId,
     offeredSkill,
     requestedSkill,
     message,
   });
 
   await createNotification({
-    userId: toUser,
+    userId: toUserId,
     type: "request",
     title: "New barter request",
     body: `${req.user.name} sent you a barter request`,
@@ -57,16 +69,20 @@ const updateRequestStatus = asyncHandler(async (req, res) => {
     throw new Error("Invalid status update");
   }
 
-  if (String(request.toUser._id) !== String(req.user._id) && status !== REQUEST_STATUS.COMPLETED) {
-    res.status(403);
-    throw new Error("Only recipient can accept/reject");
+  // Only the recipient can accept/reject
+  if (status === REQUEST_STATUS.ACCEPTED || status === REQUEST_STATUS.REJECTED) {
+    if (String(request.toUser._id) !== String(req.user._id)) {
+      res.status(403);
+      throw new Error("Only recipient can accept/reject requests");
+    }
   }
 
+  // Only participants can complete
   if (status === REQUEST_STATUS.COMPLETED) {
-    const participant =
+    const isParticipant =
       String(request.toUser._id) === String(req.user._id) ||
       String(request.fromUser._id) === String(req.user._id);
-    if (!participant) {
+    if (!isParticipant) {
       res.status(403);
       throw new Error("Only participants can complete barter");
     }
@@ -95,7 +111,7 @@ const updateRequestStatus = asyncHandler(async (req, res) => {
 const cancelRequest = asyncHandler(async (req, res) => {
   const { id } = req.params;
 
-  const request = await BarterRequest.findById(id);
+  const request = await BarterRequest.findById(id).populate("toUser", "name");
   if (!request) {
     res.status(404);
     throw new Error("Request not found");
@@ -108,11 +124,20 @@ const cancelRequest = asyncHandler(async (req, res) => {
 
   if (request.status !== REQUEST_STATUS.PENDING) {
     res.status(400);
-    throw new Error("Only pending request can be canceled");
+    throw new Error("Only pending requests can be canceled");
   }
 
   request.status = REQUEST_STATUS.CANCELED;
   await request.save();
+
+  // Notify the recipient
+  await createNotification({
+    userId: request.toUser._id,
+    type: "request-canceled",
+    title: "Barter request canceled",
+    body: "A barter request has been canceled",
+    metadata: { requestId: request._id },
+  });
 
   res.json({ success: true, request });
 });

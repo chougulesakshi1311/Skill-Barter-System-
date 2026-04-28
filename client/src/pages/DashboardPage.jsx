@@ -61,20 +61,44 @@ const Ring = ({ pct, size = 44 }) => {
 const DashboardPage = () => {
   const { user } = useAuth();
   const [metrics, setMetrics] = useState({ activeRequests: 0, matchesFound: 0, completedBarters: 0, unreadNotifications: 0 });
+  const [pendingRequests, setPendingRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError]   = useState("");
 
   const load = async () => {
     setLoading(true); setError("");
     try {
-      const { data } = await api.get("/dashboard/user");
-      setMetrics(data.metrics);
+      const dashData = await api.get("/dashboard/user");
+      setMetrics(dashData.data.metrics);
+
+      // Load pending requests (requests TO this user)
+      const reqData = await api.get("/barter");
+      const pending = (reqData.data.requests || []).filter(r => r.status === "pending" && String(r.toUser._id) === String(user._id));
+      setPendingRequests(pending);
     } catch (err) {
       setError(err.response?.data?.message || "Failed to load dashboard");
     } finally { setLoading(false); }
   };
 
-  useEffect(() => { load(); }, []);
+  const handleAccept = async (requestId) => {
+    try {
+      await api.patch(`/barter/${requestId}/status`, { status: "accepted" });
+      load();
+    } catch (err) {
+      setError(err.response?.data?.message || "Failed to accept request");
+    }
+  };
+
+  const handleDecline = async (requestId) => {
+    try {
+      await api.patch(`/barter/${requestId}/status`, { status: "rejected" });
+      load();
+    } catch (err) {
+      setError(err.response?.data?.message || "Failed to decline request");
+    }
+  };
+
+  useEffect(() => { load(); }, [user]);
 
   const firstName = user?.name?.split(" ")[0] || "there";
 
@@ -153,33 +177,44 @@ const DashboardPage = () => {
           <div className="sbs-card" style={{ padding: 0, overflow: "hidden" }}>
             <div style={{ padding: "14px 20px", background: "var(--surface-container-low)", borderBottom: "1px solid var(--outline-variant)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <h2 style={{ fontFamily: "Manrope", fontSize: "1rem", fontWeight: 700 }}>Pending Requests</h2>
-              <span className="sbs-badge sbs-badge--primary" style={{ background: "var(--primary)", color: "white" }}>
-                {SAMPLE_REQUESTS.length} NEW
-              </span>
+              {pendingRequests.length > 0 && (
+                <span className="sbs-badge sbs-badge--primary" style={{ background: "var(--primary)", color: "white" }}>
+                  {pendingRequests.length} NEW
+                </span>
+              )}
             </div>
-            <ul style={{ margin: 0, padding: 0, listStyle: "none" }}>
-              {SAMPLE_REQUESTS.map((r, i) => (
-                <li key={r.id} style={{
-                  padding: "14px 20px",
-                  display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16,
-                  borderTop: i > 0 ? "1px solid var(--surface-container)" : "none",
-                }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-                    <div style={{ width: 44, height: 44, borderRadius: "50%", background: r.color, display:"flex",alignItems:"center",justifyContent:"center", fontWeight:700, color:"var(--on-surface)", fontSize:"0.78rem", flexShrink:0 }}>{r.initials}</div>
-                    <div>
-                      <p style={{ margin: 0, fontWeight: 700, fontSize: "0.9rem" }}>
-                        {r.name} <span style={{ fontWeight: 400, color: "var(--on-surface-variant)" }}>wants to learn</span> {r.wants}
-                      </p>
-                      <p style={{ margin: 0, fontSize: "0.8rem", color: "var(--secondary)", fontWeight: 600 }}>Offers: {r.offers}</p>
+            {pendingRequests.length === 0 ? (
+              <div style={{ padding: "40px 20px", textAlign: "center", color: "var(--on-surface-variant)" }}>
+                <span className="material-symbols-outlined" style={{ fontSize: "2rem", display: "block", marginBottom: 12, opacity: 0.5 }}>inbox</span>
+                <p style={{ fontSize: "0.9rem" }}>No pending requests — all caught up!</p>
+              </div>
+            ) : (
+              <ul style={{ margin: 0, padding: 0, listStyle: "none" }}>
+                {pendingRequests.map((r, i) => (
+                  <li key={r._id} style={{
+                    padding: "14px 20px",
+                    display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16,
+                    borderTop: i > 0 ? "1px solid var(--surface-container)" : "none",
+                  }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+                      <div style={{ width: 44, height: 44, borderRadius: "50%", background: "linear-gradient(135deg, var(--primary), var(--secondary))", display:"flex",alignItems:"center",justifyContent:"center", fontWeight:700, color:"white", fontSize:"0.78rem", flexShrink:0 }}>
+                        {r.fromUser?.name?.charAt(0) || "?"}
+                      </div>
+                      <div>
+                        <p style={{ margin: 0, fontWeight: 700, fontSize: "0.9rem" }}>
+                          {r.fromUser?.name} <span style={{ fontWeight: 400, color: "var(--on-surface-variant)" }}>wants</span> {r.requestedSkill}
+                        </p>
+                        <p style={{ margin: 0, fontSize: "0.8rem", color: "var(--secondary)", fontWeight: 600 }}>Offers: {r.offeredSkill}</p>
+                      </div>
                     </div>
-                  </div>
-                  <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
-                    <Link to="/requests" className="sbs-btn sbs-btn--secondary" style={{ padding: "6px 14px", fontSize: "0.8rem" }}>Accept</Link>
-                    <Link to="/requests" className="sbs-btn sbs-btn--ghost" style={{ padding: "6px 14px", fontSize: "0.8rem" }}>Decline</Link>
-                  </div>
-                </li>
-              ))}
-            </ul>
+                    <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
+                      <button className="sbs-btn sbs-btn--secondary" style={{ padding: "6px 14px", fontSize: "0.8rem" }} onClick={() => handleAccept(r._id)}>Accept</button>
+                      <button className="sbs-btn sbs-btn--ghost" style={{ padding: "6px 14px", fontSize: "0.8rem" }} onClick={() => handleDecline(r._id)}>Decline</button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
         </div>
 
